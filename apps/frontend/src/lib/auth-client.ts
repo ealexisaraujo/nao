@@ -4,16 +4,17 @@ export const authClient = createAuthClient({});
 
 export const { useSession, signIn, signUp, signOut } = authClient;
 
-const handleGoogleSignIn = async () => {
-	await authClient.signIn.social({
-		provider: 'google',
-	});
-};
+// Find a solution for Google and GitHub auth or delete this section
+// const handleGoogleSignIn = async () => {
+// 	await authClient.signIn.social({
+// 		provider: 'google',
+// 	});
+// };
 
-const handleGitHubSignIn = async () => {
-	await authClient.signIn.social({
-		provider: 'github',
-	});
-};
+// const handleGitHubSignIn = async () => {
+// 	await authClient.signIn.social({
+// 		provider: 'github',
+// 	});
+// };
 
-export { handleGoogleSignIn, handleGitHubSignIn };
+// export { handleGoogleSignIn, handleGitHubSignIn };

@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { handleGitHubSignIn, handleGoogleSignIn } from '@/lib/auth-client';
+// import { handleGitHubSignIn, handleGoogleSignIn } from '@/lib/auth-client';
 
 interface FormField {
 	id: string;
@@ -64,7 +64,8 @@ export function SignForm({
 				</Button>
 			</form>
 
-			<div className='mt-8'>
+			{/* Find a solution for Google and GitHub auth or delete this section */}
+			{/* <div className='mt-8'>
 				<div className='relative'>
 					<div className='absolute inset-0 flex items-center'>
 						<div className='w-full border-t border-gray-300' />
@@ -82,9 +83,9 @@ export function SignForm({
 						<img src='/github-icon.svg' alt='GitHub' className='w-5 h-5' />
 					</Button>
 				</div>
-			</div>
+			</div> */}
 
-			<p className='text-center text-sm text-muted-foreground'>
+			<p className='text-center text-sm text-muted-foreground mt-8'>
 				{footerText}{' '}
 				<Link to={footerLinkTo} className='text-primary hover:underline font-medium'>
 					{footerLinkText}
