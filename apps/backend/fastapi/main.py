@@ -1,7 +1,7 @@
 from nao_core.config import NaoConfig
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
 import sys
@@ -111,7 +111,6 @@ async def execute_sql(request: ExecuteSQLRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
