@@ -11,6 +11,7 @@ from nao_core.config import (
     AnyDatabaseConfig,
     BigQueryConfig,
     DatabaseType,
+    DuckDBConfig,
     LLMConfig,
     LLMProvider,
     NaoConfig,
@@ -108,6 +109,17 @@ def setup_bigquery() -> BigQueryConfig:
     )
 
 
+def setup_duckdb() -> DuckDBConfig:
+    """Setup a DuckDB database configuration."""
+    console.print("\n[bold cyan]DuckDB Configuration[/bold cyan]\n")
+
+    name = Prompt.ask("[bold]Connection name[/bold]", default="duckdb-memory")
+
+    path = Prompt.ask("[bold]Path to the DuckDB database file[/bold]", default=":memory:")
+
+    return DuckDBConfig(name=name, path=path)
+
+
 def setup_databases() -> list[AnyDatabaseConfig]:
     """Setup database configurations."""
     databases: list[AnyDatabaseConfig] = []
@@ -129,6 +141,11 @@ def setup_databases() -> list[AnyDatabaseConfig]:
 
         if db_type == DatabaseType.BIGQUERY.value:
             db_config = setup_bigquery()
+            databases.append(db_config)
+            console.print(f"\n[bold green]✓[/bold green] Added database [cyan]{db_config.name}[/cyan]")
+
+        elif db_type == DatabaseType.DUCKDB.value:
+            db_config = setup_duckdb()
             databases.append(db_config)
             console.print(f"\n[bold green]✓[/bold green] Added database [cyan]{db_config.name}[/cyan]")
 
