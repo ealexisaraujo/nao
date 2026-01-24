@@ -2,7 +2,7 @@ import { and, desc, eq } from 'drizzle-orm';
 
 import s, { DBChat, DBChatMessage, DBMessagePart, MessageFeedback, NewChat } from '../db/abstractSchema';
 import { db } from '../db/db';
-import { ListChatResponse, StopReason, TokenUsage, UIChat, UIMessage } from '../types/chat';
+import { ListChatResponse, LlmProvider, StopReason, TokenUsage, UIChat, UIMessage } from '../types/chat';
 import { convertDBPartToUIPart, mapDBPartsToUIParts, mapUIPartsToDBParts } from '../utils/chatMessagePartMappings';
 import { getErrorMessage } from '../utils/utils';
 import * as llmConfigQueries from './project-llm-config.queries';
@@ -50,7 +50,8 @@ export const loadChat = async (
 		return [];
 	}
 
-	const messages = aggregateChatMessagParts(result);
+	const provider = await llmConfigQueries.getProjectModelProvider(chat.projectId);
+	const messages = aggregateChatMessagParts(result, provider);
 	return [
 		{
 			id: chatId,
@@ -71,10 +72,11 @@ const aggregateChatMessagParts = (
 		message_part: DBMessagePart;
 		message_feedback?: MessageFeedback | null;
 	}[],
+	provider?: LlmProvider,
 ) => {
 	const messagesMap = result.reduce(
 		(acc, row) => {
-			const uiPart = convertDBPartToUIPart(row.message_part);
+			const uiPart = convertDBPartToUIPart(row.message_part, provider);
 			if (!uiPart) {
 				return acc;
 			}
