@@ -28,6 +28,58 @@ export function getUserRules(): string | null {
 	}
 }
 
+type Repository = {
+	name: string;
+	hasDbtProject: boolean;
+	dbtProjectPath?: string;
+};
+
+export function getRepositories(): Repository[] | null {
+	const projectFolder = env.NAO_DEFAULT_PROJECT_PATH;
+
+	if (!projectFolder) {
+		return null;
+	}
+
+	const reposPath = join(projectFolder, 'repos');
+
+	if (!existsSync(reposPath)) {
+		return null;
+	}
+
+	try {
+		const entries = readdirSync(reposPath, { withFileTypes: true });
+		const repositories: Repository[] = [];
+
+		for (const entry of entries) {
+			if (!entry.isDirectory()) {
+				continue;
+			}
+
+			const rootDbtProject = join(reposPath, entry.name, 'dbt_project.yml');
+			const subDbtProject = join(reposPath, entry.name, 'dbt', 'dbt_project.yml');
+
+			let hasDbtProject = false;
+			let dbtProjectPath: string | undefined;
+
+			if (existsSync(rootDbtProject)) {
+				hasDbtProject = true;
+				dbtProjectPath = `repos/${entry.name}`;
+			} else if (existsSync(subDbtProject)) {
+				hasDbtProject = true;
+				dbtProjectPath = `repos/${entry.name}/dbt`;
+			}
+
+			repositories.push({ name: entry.name, hasDbtProject, dbtProjectPath });
+		}
+
+		return repositories.length > 0 ? repositories : null;
+	} catch (error) {
+		console.error('Error reading repos folder:', error);
+		return null;
+	}
+}
+
 type Connection = {
 	type: string;
 	database: string;

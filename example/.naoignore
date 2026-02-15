@@ -1,2 +1,8 @@
 templates/
 *.j2
+
+# dbt generated/vendor directories
+dbt_packages/
+target/
+logs/
+dbt_modules/

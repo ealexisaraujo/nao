@@ -1,9 +1,10 @@
-import { getConnections, getUserRules } from '../agents/user-rules';
+import { getConnections, getRepositories, getUserRules } from '../agents/user-rules';
 import { Block, Bold, Br, Italic, Link, List, ListItem, Span, Title } from '../lib/markdown';
 
 export function SystemPrompt() {
 	const userRules = getUserRules();
 	const connections = getConnections();
+	const repositories = getRepositories();
 
 	return (
 		<Block>
@@ -67,6 +68,15 @@ export function SystemPrompt() {
 					Each table have files describing the table schema and the data in the table (like columns.md,
 					preview.md, etc.)
 				</ListItem>
+				<ListItem>
+					The <Italic>repos</Italic> folder contains synced git repositories with source code, data
+					transformation logic (dbt models), and documentation.
+				</ListItem>
+				<ListItem>
+					When asked about a database table, use <Italic>search</Italic> or <Italic>grep</Italic> in repos/ to
+					find the corresponding dbt model that creates it — this reveals business logic, transformations, and
+					lineage.
+				</ListItem>
 			</List>
 			<Title level={2}>SQL Query Rules</Title>
 			<List>
@@ -91,6 +101,19 @@ export function SystemPrompt() {
 						{connections.map((connection) => (
 							<ListItem>
 								{connection.type} database={connection.database}
+							</ListItem>
+						))}
+					</List>
+				</Block>
+			)}
+			{repositories && (
+				<Block>
+					<Title level={2}>Synced Repositories</Title>
+					<List>
+						{repositories.map((repo) => (
+							<ListItem>
+								{repo.name}
+								{repo.hasDbtProject ? ' (contains dbt project)' : ''}
 							</ListItem>
 						))}
 					</List>
