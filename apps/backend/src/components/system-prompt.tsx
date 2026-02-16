@@ -75,9 +75,13 @@ export function SystemPrompt() {
 					transformation logic (dbt models), and documentation.
 				</ListItem>
 				<ListItem>
-					When asked about a database table, use <Italic>search</Italic> or <Italic>grep</Italic> in repos/ to
-					find the corresponding dbt model that creates it — this reveals business logic, transformations, and
-					lineage.
+					The <Italic>dbt-index</Italic> folder contains pre-built indexes of dbt models for fast lookup. Use{' '}
+					<Italic>grep</Italic> on manifest.md to find models by name, and sources.md for source-to-database
+					mappings.
+				</ListItem>
+				<ListItem>
+					When asked about a database table, first search <Italic>dbt-index/</Italic> manifest.md for the
+					model name, then read the actual SQL file from repos/ for full business logic and transformations.
 				</ListItem>
 			</List>
 			<Title level={2}>SQL Query Rules</Title>
@@ -131,7 +135,8 @@ export function SystemPrompt() {
 						{repositories.map((repo) => (
 							<ListItem>
 								{repo.name}
-								{repo.hasDbtProject ? ' (contains dbt project)' : ''}
+								{repo.hasDbtProject && repo.indexed ? ' (dbt project, indexed)' : ''}
+								{repo.hasDbtProject && !repo.indexed ? ' (dbt project)' : ''}
 							</ListItem>
 						))}
 					</List>
