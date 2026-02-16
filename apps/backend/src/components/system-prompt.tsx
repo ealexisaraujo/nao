@@ -1,5 +1,5 @@
 import { getConnections, getRepositories, getUserRules } from '../agents/user-rules';
-import { Block, Bold, Br, Italic, Link, List, ListItem, Span, Title } from '../lib/markdown';
+import { Block, Bold, Br, Italic, Link, List, ListItem, Location, Span, Title } from '../lib/markdown';
 import { skillService } from '../services/skill.service';
 
 export function SystemPrompt() {
