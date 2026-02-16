@@ -7,14 +7,13 @@ the dbt-index/ folder.
 
 import re
 from datetime import datetime, timezone
+from itertools import chain
 from pathlib import Path
 from typing import NamedTuple
 
 import yaml
 
-# ---------------------------------------------------------------------------
-# Data structures
-# ---------------------------------------------------------------------------
+from nao_core.ui import UI
 
 
 class ModelInfo(NamedTuple):
@@ -33,10 +32,6 @@ class SourceInfo(NamedTuple):
     tables: list[str]
 
 
-# ---------------------------------------------------------------------------
-# Compiled regex patterns
-# ---------------------------------------------------------------------------
-
 RE_REF = re.compile(
     r"""\{\{\s*ref\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}""",
 )
@@ -49,12 +44,10 @@ RE_CONFIG_MATERIALIZED = re.compile(
 )
 RE_JINJA_BLOCK = re.compile(r"\{%.*?%\}", re.DOTALL)
 RE_JINJA_EXPR = re.compile(r"\{\{.*?\}\}", re.DOTALL)
+RE_DBT_PROJECT_NAME = re.compile(r"""^name:\s*['"]?([^'"#\n]+)""", re.MULTILINE)
 
 SKIP_DIRS = {"dbt_packages", "dbt_modules", "target", "logs", ".git"}
-
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
+MAX_PROJECT_DEPTH = 3
 
 
 def index_all_projects(project_folder: Path) -> None:
@@ -74,7 +67,7 @@ def index_all_projects(project_folder: Path) -> None:
         try:
             _index_single_project(repo_name, project_path, index_root, project_folder)
         except Exception as e:
-            print(f"[dbt-indexer] Error indexing {repo_name}: {e}")
+            UI.error(f"Error indexing {repo_name}: {e}")
 
 
 def _index_single_project(
@@ -99,12 +92,18 @@ def _index_single_project(
     sources_md = generate_sources_md(sources, repo_name)
     (out_dir / "sources.md").write_text(sources_md, encoding="utf-8")
 
-    print(f"[dbt-indexer] Indexed {repo_name}: {len(models)} models, {len(sources)} sources")
+    UI.success(f"Indexed {repo_name}: {len(models)} models, {len(sources)} sources")
 
 
-# ---------------------------------------------------------------------------
-# Project discovery
-# ---------------------------------------------------------------------------
+def _find_dbt_project_yml(repo_dir: Path) -> Path | None:
+    """Search for dbt_project.yml within a repo up to MAX_PROJECT_DEPTH."""
+    for depth in range(MAX_PROJECT_DEPTH + 1):
+        pattern = "/".join(["*"] * depth) + "/dbt_project.yml" if depth else "dbt_project.yml"
+        matches = list(repo_dir.glob(pattern))
+        for match in matches:
+            if match.is_file() and not _should_skip(match):
+                return match
+    return None
 
 
 def find_dbt_projects(repos_path: Path) -> list[tuple[str, Path]]:
@@ -115,20 +114,11 @@ def find_dbt_projects(repos_path: Path) -> list[tuple[str, Path]]:
         if not entry.is_dir():
             continue
 
-        root_project = entry / "dbt_project.yml"
-        nested_project = entry / "dbt" / "dbt_project.yml"
-
-        if root_project.is_file():
-            results.append((entry.name, entry))
-        elif nested_project.is_file():
-            results.append((entry.name, entry / "dbt"))
+        project_yml = _find_dbt_project_yml(entry)
+        if project_yml:
+            results.append((entry.name, project_yml.parent))
 
     return results
-
-
-# ---------------------------------------------------------------------------
-# Project indexing
-# ---------------------------------------------------------------------------
 
 
 def index_dbt_project(
@@ -144,32 +134,19 @@ def index_dbt_project(
     sources: list[SourceInfo] = []
     descriptions: dict[str, str] = {}
 
-    # First pass: collect YAML descriptions and sources
-    for yaml_path in models_dir.rglob("*.yml"):
+    yaml_files = chain(models_dir.rglob("*.yml"), models_dir.rglob("*.yaml"))
+    for yaml_path in yaml_files:
         if _should_skip(yaml_path) or not yaml_path.is_file():
             continue
         try:
             descriptions.update(parse_yaml_descriptions(yaml_path))
         except Exception as e:
-            print(f"[dbt-indexer] Warning: failed to parse descriptions from {yaml_path}: {e}")
+            UI.warn(f"Failed to parse descriptions from {yaml_path}: {e}")
         try:
             sources.extend(parse_yaml_sources(yaml_path))
         except Exception as e:
-            print(f"[dbt-indexer] Warning: failed to parse sources from {yaml_path}: {e}")
+            UI.warn(f"Failed to parse sources from {yaml_path}: {e}")
 
-    for yaml_path in models_dir.rglob("*.yaml"):
-        if _should_skip(yaml_path) or not yaml_path.is_file():
-            continue
-        try:
-            descriptions.update(parse_yaml_descriptions(yaml_path))
-        except Exception as e:
-            print(f"[dbt-indexer] Warning: failed to parse descriptions from {yaml_path}: {e}")
-        try:
-            sources.extend(parse_yaml_sources(yaml_path))
-        except Exception as e:
-            print(f"[dbt-indexer] Warning: failed to parse sources from {yaml_path}: {e}")
-
-    # Second pass: parse SQL models
     for sql_path in models_dir.rglob("*.sql"):
         if _should_skip(sql_path) or not sql_path.is_file():
             continue
@@ -177,7 +154,7 @@ def index_dbt_project(
             model = _parse_sql_model(sql_path, models_dir, descriptions, default_materializations)
             models.append(model)
         except Exception as e:
-            print(f"[dbt-indexer] Warning: failed to parse {sql_path}: {e}")
+            UI.warn(f"Failed to parse {sql_path}: {e}")
 
     models.sort(key=lambda m: m.name)
     return models, sources
@@ -248,8 +225,6 @@ def _extract_default_materializations(config: dict) -> dict[str, str]:
 def _walk_materialization_config(node: dict, result: dict[str, str]) -> None:
     mat = node.get("+materialized") or node.get("materialized")
     if isinstance(mat, str):
-        # We need the parent key to map this, but we don't have it here.
-        # Instead, walk children and use their keys.
         pass
 
     for key, value in node.items():
@@ -260,11 +235,6 @@ def _walk_materialization_config(node: dict, result: dict[str, str]) -> None:
             if isinstance(child_mat, str):
                 result[key] = child_mat
             _walk_materialization_config(value, result)
-
-
-# ---------------------------------------------------------------------------
-# SQL parsing
-# ---------------------------------------------------------------------------
 
 
 def parse_sql_dependencies(content: str) -> tuple[list[str], list[tuple[str, str]]]:
@@ -281,11 +251,6 @@ def parse_sql_config(content: str) -> dict:
     if match:
         result["materialized"] = match.group(1)
     return result
-
-
-# ---------------------------------------------------------------------------
-# YAML parsing
-# ---------------------------------------------------------------------------
 
 
 def _strip_jinja(text: str) -> str:
@@ -316,8 +281,6 @@ def parse_yaml_sources(path: Path) -> list[SourceInfo]:
         name = src.get("name", "")
         database = src.get("database")
         if isinstance(database, str):
-            # After Jinja stripping, multiline conditionals may leave
-            # duplicate values — take the first non-empty line.
             lines = [ln.strip() for ln in database.splitlines() if ln.strip()]
             database = lines[0] if lines else None
         schema_name = src.get("schema", "")
@@ -365,14 +328,6 @@ def parse_yaml_descriptions(path: Path) -> dict[str, str]:
     return result
 
 
-# ---------------------------------------------------------------------------
-# Config reading
-# ---------------------------------------------------------------------------
-
-
-RE_DBT_PROJECT_NAME = re.compile(r"""^name:\s*['"]?([^'"#\n]+)""", re.MULTILINE)
-
-
 def read_project_config(path: Path) -> dict:
     """Read dbt_project.yml for project name and default materializations."""
     config_path = path / "dbt_project.yml"
@@ -381,7 +336,6 @@ def read_project_config(path: Path) -> dict:
 
     raw = config_path.read_text(encoding="utf-8", errors="replace")
 
-    # Try Jinja-stripped YAML parse first; fall back to regex for name
     cleaned = _strip_jinja(raw)
     try:
         data = yaml.safe_load(cleaned)
@@ -390,17 +344,11 @@ def read_project_config(path: Path) -> dict:
     except yaml.YAMLError:
         pass
 
-    # Fallback: extract name via regex from raw content
     result: dict = {}
     match = RE_DBT_PROJECT_NAME.search(raw)
     if match:
         result["name"] = match.group(1).strip().strip("'\"")
     return result
-
-
-# ---------------------------------------------------------------------------
-# Markdown generation
-# ---------------------------------------------------------------------------
 
 
 def generate_manifest_md(

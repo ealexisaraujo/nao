@@ -8,7 +8,6 @@ from cyclopts import Parameter
 from rich.console import Console
 
 from nao_core.config import NaoConfig
-from nao_core.dbt_indexer import index_all_projects
 from nao_core.templates.render import render_all_templates
 from nao_core.tracking import track_command
 
@@ -21,21 +20,6 @@ from .providers import (
 )
 
 console = Console()
-
-
-def _index_dbt_projects(project_path: Path, results: list[SyncResult]) -> None:
-    """Index dbt projects in repos/ after repository sync."""
-    repos_synced = any(r.provider_name == "Repositories" and r.success and r.items_synced > 0 for r in results)
-    repos_dir = project_path / "repos"
-
-    if not repos_synced and not repos_dir.is_dir():
-        return
-
-    try:
-        console.print("\n[bold cyan]📇 Indexing dbt projects[/bold cyan]\n")
-        index_all_projects(project_path)
-    except Exception as e:
-        console.print(f"  [yellow]⚠[/yellow] Failed to index dbt projects: {e}")
 
 
 @track_command("sync")
@@ -118,9 +102,6 @@ def sync(
             # Capture error but continue with other providers
             results.append(SyncResult.from_error(sync_provider.name, e))
             console.print(f"  [yellow]⚠[/yellow] {sync_provider.emoji} {sync_provider.name}: [red]{e}[/red]")
-
-    # Index dbt projects if repos were synced
-    _index_dbt_projects(project_path, results)
 
     # Render user Jinja templates
     template_result = None

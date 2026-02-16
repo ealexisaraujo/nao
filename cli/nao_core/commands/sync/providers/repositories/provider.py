@@ -9,6 +9,7 @@ from rich.console import Console
 from nao_core.commands.sync.cleanup import cleanup_stale_repos
 from nao_core.config import NaoConfig
 from nao_core.config.repos import RepoConfig
+from nao_core.dbt_indexer import index_all_projects
 
 from ..base import SyncProvider, SyncResult
 
@@ -107,12 +108,12 @@ class RepositorySyncProvider(SyncProvider):
         return config.repos
 
     def sync(self, items: list[Any], output_path: Path, project_path: Path | None = None) -> SyncResult:
-        """Sync all configured repositories.
+        """Sync all configured repositories and index dbt projects.
 
         Args:
                 items: List of repository configurations
                 output_path: Base path where repositories are stored
-                project_path: Path to the nao project root (unused for repos)
+                project_path: Path to the nao project root
 
         Returns:
                 SyncResult with number of successfully synced repositories
@@ -131,4 +132,14 @@ class RepositorySyncProvider(SyncProvider):
                 success_count += 1
                 console.print(f"  [green]✓[/green] {repo.name}")
 
+        if success_count > 0 and project_path:
+            self._index_dbt_projects(project_path)
+
         return SyncResult(provider_name=self.name, items_synced=success_count)
+
+    def _index_dbt_projects(self, project_path: Path) -> None:
+        try:
+            console.print("\n[bold cyan]📇 Indexing dbt projects[/bold cyan]\n")
+            index_all_projects(project_path)
+        except Exception as e:
+            console.print(f"  [yellow]⚠[/yellow] Failed to index dbt projects: {e}")

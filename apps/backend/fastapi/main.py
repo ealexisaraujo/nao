@@ -11,8 +11,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from nao_core.dbt_indexer import index_all_projects
-
 load_dotenv()
 
 cli_path = Path(__file__).parent.parent.parent / "cli"
@@ -25,19 +23,6 @@ port = int(os.environ.get("PORT", 8005))
 
 # Global scheduler instance
 scheduler = None
-
-
-def _run_dbt_indexing(source: str) -> None:
-    """Run dbt indexing with error handling."""
-    try:
-        project_path = Path(
-            os.environ.get("NAO_DEFAULT_PROJECT_PATH", "/app/context")
-        )
-        if project_path.exists():
-            index_all_projects(project_path)
-            print(f"[{source}] dbt projects indexed at {datetime.now().isoformat()}")
-    except Exception as e:
-        print(f"[{source}] Failed to index dbt projects: {e}")
 
 
 @asynccontextmanager
@@ -66,8 +51,6 @@ async def lifespan(app: FastAPI):
         except ValueError as e:
             print(f"[Scheduler] Invalid cron expression '{refresh_schedule}': {e}")
 
-    _run_dbt_indexing("Startup")
-
     yield
 
     # Shutdown scheduler
@@ -82,7 +65,6 @@ async def _refresh_context_task():
         updated = provider.refresh()
         if updated:
             print(f"[Scheduler] Context refreshed at {datetime.now().isoformat()}")
-            _run_dbt_indexing("Scheduler")
         else:
             print(
                 f"[Scheduler] Context already up-to-date at {datetime.now().isoformat()}"
@@ -171,7 +153,6 @@ async def refresh_context():
         updated = provider.refresh()
 
         if updated:
-            _run_dbt_indexing("Refresh")
             return RefreshResponse(
                 status="ok",
                 updated=True,

@@ -1,4 +1,4 @@
-import { getConnections, getUserRules } from '../agents/user-rules';
+import { getConnections, getRepositories, getUserRules } from '../agents/user-rules';
 import { Block, Bold, Br, Italic, Link, List, ListItem, Location, Span, Title } from '../lib/markdown';
 import { skillService } from '../services/skill.service';
 
@@ -6,6 +6,8 @@ export function SystemPrompt() {
 	const userRules = getUserRules();
 	const connections = getConnections();
 	const skills = skillService.getSkills();
+	const repositories = getRepositories();
+	const hasDbtProjects = repositories?.some((r) => r.hasDbtProject) ?? false;
 
 	return (
 		<Block>
@@ -71,17 +73,22 @@ export function SystemPrompt() {
 				</ListItem>
 				<ListItem>
 					The <Italic>repos</Italic> folder contains synced git repositories with source code, data
-					transformation logic (dbt models), and documentation.
+					transformation logic, and documentation.
 				</ListItem>
-				<ListItem>
-					The <Italic>dbt-index</Italic> folder contains pre-built indexes of dbt models for fast lookup. Use{' '}
-					<Italic>grep</Italic> on manifest.md to find models by name, and sources.md for source-to-database
-					mappings.
-				</ListItem>
-				<ListItem>
-					When asked about a database table, first search <Italic>dbt-index/</Italic> manifest.md for the
-					model name, then read the actual SQL file from repos/ for full business logic and transformations.
-				</ListItem>
+				{hasDbtProjects && (
+					<>
+						<ListItem>
+							The <Italic>dbt-index</Italic> folder contains pre-built indexes of dbt models for fast
+							lookup. Use <Italic>grep</Italic> on manifest.md to find models by name, and sources.md for
+							source-to-database mappings.
+						</ListItem>
+						<ListItem>
+							When asked about a database table, first search <Italic>dbt-index/</Italic> manifest.md for
+							the model name, then read the actual SQL file from repos/ for full business logic and
+							transformations.
+						</ListItem>
+					</>
+				)}
 			</List>
 			<Title level={2}>SQL Query Rules</Title>
 			<List>
