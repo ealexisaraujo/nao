@@ -1,9 +1,11 @@
 import { getConnections, getRepositories, getUserRules } from '../agents/user-rules';
 import { Block, Bold, Br, Italic, Link, List, ListItem, Span, Title } from '../lib/markdown';
+import { skillService } from '../services/skill.service';
 
 export function SystemPrompt() {
 	const userRules = getUserRules();
 	const connections = getConnections();
+	const skills = skillService.getSkills();
 	const repositories = getRepositories();
 
 	return (
@@ -108,6 +110,22 @@ export function SystemPrompt() {
 							</ListItem>
 						))}
 					</List>
+				</Block>
+			)}
+			{skills.length > 0 && (
+				<Block>
+					<Title level={2}>Available Skills</Title>
+					<Span>You have access to pre-defined skills. Use these as guidance for relevant questions.</Span>
+					{skills.map((skill) => (
+						<Block key={skill.name}>
+							<Title level={3}>Skill: {skill.name}</Title>
+							<Span>
+								<Bold>Description:</Bold> {skill.description}
+							</Span>
+							<Br />
+							<Location>{skill.location}</Location>
+						</Block>
+					))}
 				</Block>
 			)}
 			{repositories && (
