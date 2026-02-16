@@ -1,4 +1,4 @@
-import { getConnections, getRepositories, getUserRules } from '../agents/user-rules';
+import { getConnections, getUserRules } from '../agents/user-rules';
 import { Block, Bold, Br, Italic, Link, List, ListItem, Location, Span, Title } from '../lib/markdown';
 import { skillService } from '../services/skill.service';
 
@@ -6,7 +6,6 @@ export function SystemPrompt() {
 	const userRules = getUserRules();
 	const connections = getConnections();
 	const skills = skillService.getSkills();
-	const repositories = getRepositories();
 
 	return (
 		<Block>
@@ -126,20 +125,6 @@ export function SystemPrompt() {
 							<Location>{skill.location}</Location>
 						</Block>
 					))}
-				</Block>
-			)}
-			{repositories && (
-				<Block>
-					<Title level={2}>Synced Repositories</Title>
-					<List>
-						{repositories.map((repo) => (
-							<ListItem>
-								{repo.name}
-								{repo.hasDbtProject && repo.indexed ? ' (dbt project, indexed)' : ''}
-								{repo.hasDbtProject && !repo.indexed ? ' (dbt project)' : ''}
-							</ListItem>
-						))}
-					</List>
 				</Block>
 			)}
 		</Block>

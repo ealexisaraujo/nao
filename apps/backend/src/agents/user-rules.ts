@@ -32,7 +32,6 @@ type Repository = {
 	name: string;
 	hasDbtProject: boolean;
 	dbtProjectPath?: string;
-	indexed?: boolean;
 };
 
 export function getRepositories(): Repository[] | null {
@@ -71,13 +70,7 @@ export function getRepositories(): Repository[] | null {
 				dbtProjectPath = `repos/${entry.name}/dbt`;
 			}
 
-			let indexed = false;
-			if (hasDbtProject) {
-				const indexPath = join(reposPath, '..', 'dbt-index', entry.name, 'manifest.md');
-				indexed = existsSync(indexPath);
-			}
-
-			repositories.push({ name: entry.name, hasDbtProject, dbtProjectPath, indexed });
+			repositories.push({ name: entry.name, hasDbtProject, dbtProjectPath });
 		}
 
 		return repositories.length > 0 ? repositories : null;
