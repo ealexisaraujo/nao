@@ -10,22 +10,11 @@ from nao_core.config.exceptions import InitError
 from nao_core.ui import ask_confirm, ask_text
 
 from .base import DatabaseConfig
+from .context import DatabaseContext
 
 
-class RedshiftDatabaseContext:
+class RedshiftDatabaseContext(DatabaseContext):
     """Redshift-specific context that bypasses Ibis's problematic pg_enum queries."""
-
-    def __init__(self, conn: BaseBackend, schema: str, table_name: str):
-        self._conn = conn
-        self._schema = schema
-        self._table_name = table_name
-        self._table_ref = None
-
-    @property
-    def table(self):
-        if self._table_ref is None:
-            self._table_ref = self._conn.table(self._table_name, database=self._schema)
-        return self._table_ref
 
     def columns(self) -> list[dict[str, Any]]:
         """Return column metadata by querying information_schema directly."""
